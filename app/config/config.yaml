@@ -1,0 +1,39 @@
+# 基础路径配置
+base:
+  docs_dir: "./docs"
+  uploads_dir: "./uploads"
+  cache_dir: "./.cache"
+  model_dir: "./models"
+
+# Milvus 向量数据库连接配置
+milvus:
+  host: "127.0.0.1"
+  port: 19530
+  collection_name: "enterprise_kb"
+
+# Chroma 向量数据库配置
+chroma:
+  persist_dir: "./app/rag/chroma_db"
+
+# rag 模型配置
+rag:
+  chunk_size: 512
+  chunk_overlap: 80
+  top_k: 4
+
+# 中文Embedding向量模型配置
+embedding:
+  model_name: "BAAI/bge-small-zh-v1.5"
+  device: "cpu"
+
+# 召回结果重排开关
+rerank_enable: true
+
+# 重排序模型配置
+rerank:
+  model_name: "BAAI/bge-reranker-v2-m3"
+  device: "cpu"
+  use_fp16: true
+
+agent:
+  mode: function  # 默认使用 Function Calling

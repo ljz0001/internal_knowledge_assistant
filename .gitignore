@@ -1,0 +1,43 @@
+# Python 缓存文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.log
+
+# 虚拟环境
+venv/
+.venv/
+env/
+kb_env/
+.env
+
+# Python 包元数据
+*.egg-info/
+.python-version
+
+# 项目缓存
+.cache/
+logs/
+
+# 编辑器配置
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 向量数据库持久化数据
+app/rag/chroma_db/
+*.sqlite3
+
+# 本地模型文件
+models/
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# 运行时上传文件（按需，素材不提交git）
+uploads/

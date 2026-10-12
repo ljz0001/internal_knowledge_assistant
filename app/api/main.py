@@ -1,9 +1,8 @@
 # FastAPI应用的"心脏"，把所有东西组装起来，启动时只需要运行这个文件
 
 from fastapi import FastAPI
-#from app.api.router import api_router
+from app.api.router import api_router
 
-from pydantic import BaseModel
 
 # 创建FastAPI应用实例
 app = FastAPI(
@@ -15,7 +14,7 @@ app = FastAPI(
 )
 
 # 注册所有业务路由
-#app.include_router(api_router)
+app.include_router(api_router)
 
 # 根路径接口（访问http://localhost:8000/ 时返回）
 @app.get("/", summary="根路径健康检查")
@@ -25,45 +24,6 @@ async def root():
         "docs": "访问 http://localhost:8000/docs 查看API文档",
         "version": "1.0.0"
     }
-
-
-
-# ---------------- 练习接口开始 ----------------
-# GET练习接口：参数从url地址栏获取
-@app.get("/demo_get")
-async def demo_get(name: str, age: int = 18):
-    """
-    GET示例
-    name：必填参数
-    age：选填，默认18
-    """
-    return {
-        "http方法": "GET",
-        "你的名字": name,
-        "你的年龄": age
-    }
-
-
-# POST需要接收的JSON请求体模型
-class DemoPostInput(BaseModel):
-    username: str
-    question: str
-    score: int
-
-
-# POST练习接口：参数从请求体body获取
-@app.post("/demo_post")
-async def demo_post(input_data: DemoPostInput):
-    """POST示例，数据放在请求体JSON，地址栏看不到"""
-    return {
-        "http方法": "POST",
-        "用户名": input_data.username,
-        "提问内容": input_data.question,
-        "分数": input_data.score
-    }
-
-
-
 
 
 

@@ -1,14 +1,8 @@
-from fastapi import APIRouter,Depends
-from app.api.schemas.chat import {
-    ChatRequest,
-    ApiResponse
-}
-from app.api.deps import {
-    get_agent
-}
+from fastapi import APIRouter, Depends
+from app.api.schemas import ApiResponse, ChatRequest
+from app.api.deps import get_agent
 from app.agent.function_agent import run_function_agent
 from app.common.logger import logger
-import traceback
 
 
 # 创建路由组：prefix是路径前缀（这个文件里的接口都以/chat开头），tags是Swagger文档里的分组
@@ -27,11 +21,11 @@ async def chat(request:ChatRequest,agent = Depends(get_agent)):
     try:
         logger.info(f"收到对话请求：query={request.query},session_id={request.session_id}")
         # 调用Agent进行对话
-        result = run_function_agent(agent,request.query,request.session_id)
+        result = run_function_agent(request.query, request.session_id, agent=agent)
         # 用统一格式返回
         return ApiResponse(data=result)
     except Exception as e:
-        logger.error(f"对话失败：{e}，traceback.format_exc()")
+        logger.exception("对话失败")
         return ApiResponse(code = 5000,msg = f"对话服务异常：{str(e)}")
     
 

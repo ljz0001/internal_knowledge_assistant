@@ -2,14 +2,15 @@
 # Pydantic会自动校验格式，格式不对直接报错（不用手动判断）
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from datetime import date, time
+from typing import Any, Optional
 
 # ---------- 统一响应格式（所有接口都用这个返回） ----------
 class ApiResponse(BaseModel):
     """统一响应包装，前端只需要按这个格式解析所有接口"""
     code: int = Field(default=0, description="状态码：0=成功，非0=失败")
     msg: str = Field(default="success", description="提示信息")
-    data: Optional[dict | list | str] = Field(default=None, description="真正的业务数据")
+    data: Any = Field(default=None, description="真正的业务数据")
 
 # ---------- 对话请求相关 ----------
 class ChatRequest(BaseModel):
@@ -52,28 +53,28 @@ class EmployeeUpdate(BaseModel):
 # 考勤相关
 class AttendanceCreate(BaseModel):
     emp_id: int = Field(..., description="员工ID")
-    attend_date: str = Field(..., description="日期（YYYY-MM-DD）")
-    check_in: str = Field(..., description="上班打卡时间（HH:MM:SS）")
-    check_out: str = Field(..., description="下班打卡时间（HH:MM:SS）")
+    attend_date: date = Field(..., description="日期（YYYY-MM-DD）")
+    check_in: time = Field(..., description="上班打卡时间（HH:MM:SS）")
+    check_out: time = Field(..., description="下班打卡时间（HH:MM:SS）")
     status: str = Field(default="正常", description="状态（默认正常）")
 
 class AttendanceUpdate(BaseModel):
-    check_in: Optional[str] = None
-    check_out: Optional[str] = None
+    check_in: Optional[time] = None
+    check_out: Optional[time] = None
     status: Optional[str] = None
 
 # 请假相关
 class LeaveCreate(BaseModel):
     emp_id: int = Field(..., description="员工ID")
     leave_type: str = Field(..., description="请假类型（病假/事假/年假）")
-    start_date: str = Field(..., description="开始日期（YYYY-MM-DD）")
-    end_date: str = Field(..., description="结束日期（YYYY-MM-DD）")
+    start_date: date = Field(..., description="开始日期（YYYY-MM-DD）")
+    end_date: date = Field(..., description="结束日期（YYYY-MM-DD）")
     reason: str = Field(..., description="请假原因")
 
 class LeaveUpdate(BaseModel):
     leave_type: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     reason: Optional[str] = None
     audit_status: Optional[str] = None
 

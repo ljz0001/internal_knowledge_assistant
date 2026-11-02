@@ -1,4 +1,7 @@
-from langgraph.checkpoint import MemorySaver
+try:
+    from langgraph.checkpoint.memory import MemorySaver
+except ImportError:
+    from langgraph.checkpoint.memory import InMemorySaver as MemorySaver
 
 _memory_saver = None
 

@@ -12,6 +12,15 @@ venv/
 env/
 kb_env/
 .env
+.env.*
+!.env.example
+!.env.*.example
+
+# 本地密钥与证书
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Python 包元数据
 *.egg-info/
@@ -20,6 +29,8 @@ kb_env/
 # 项目缓存
 .cache/
 logs/
+.pytest_cache/
+.coverage
 
 # 编辑器配置
 .idea/
@@ -41,6 +52,10 @@ models/
 
 # 运行时上传文件（按需，素材不提交git）
 uploads/
+
+# 本地生成的修改说明与运行报告
+**/*修改日志.md
+**/*运行报告*.md
 
 # 项目文档，不上传仓库
 企业内部办公知识库问答助手.docx

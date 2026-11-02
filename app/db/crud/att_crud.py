@@ -6,6 +6,9 @@ from datetime import date
 def get_attendance_by_emp_id(db:Session,emp_id:int):
     return db.query(Attendance).filter(Attendance.emp_id == emp_id).all()
 
+def get_attendance_by_id(db: Session, attendance_id: int):
+    return db.query(Attendance).filter(Attendance.id == attendance_id).first()
+
 
 # 根据日期查询考勤记录
 def get_attendance_by_date(db:Session,date:date):
@@ -25,13 +28,12 @@ def add_attendance(db:Session,attendance_info:dict):
 
 
 # 更新考勤记录
-def update_attendance(db:Session,emp_id:int,update_attendance:dict):
-    attendance = get_attendance_by_emp_id(db,emp_id)
+def update_attendance(db:Session,attendance_id:int,update_attendance:dict):
+    attendance = get_attendance_by_id(db,attendance_id)
     if not attendance:
         return None
     for key,value in update_attendance.items():
-        if hasattr(attendance,key):
-            setattr(attendance,key,value)
+        setattr(attendance,key,value)
     db.commit()
     db.refresh(attendance)
     return attendance

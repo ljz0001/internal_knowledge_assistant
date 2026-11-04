@@ -1,144 +1,97 @@
-from app.rag.rag_server import (
-    rag_search,
-    rag_add_file,
-    rag_add_files,
-    rag_delete_file,
-)
-from app.rag.vector_store import get_vector_store
-from app.config.settings import DOCS_DIR
+from unittest.mock import Mock
+
+import pytest
+from fastapi import HTTPException
+
+from app.api.routers import rag
 
 
-def test_rag_search():
-    """测试RAG问答"""
-    question = input("请输入你的问题：")
-    if not question.strip():
-        print("⚠️ 问题不能为空")
-        return
-    print("\n🤖 正在检索并生成回答...")
-    answer = rag_search(question)
-    print(f"\n📝 回答：{answer}")
+def test_search_returns_answer(monkeypatch):
+    search = Mock(return_value="差旅报销需要提供发票。")
+    monkeypatch.setattr(rag, "rag_search", search)
+
+    response = rag.search(rag.RagSearchRequest(query="差旅如何报销？"))
+
+    assert response.data == {"answer": "差旅报销需要提供发票。"}
+    search.assert_called_once_with("差旅如何报销？")
 
 
-def test_rag_init():
-    """测试全量入库"""
-    vs = get_vector_store()
-    before = vs._collection.count()
-    print(f"当前向量库中有 {before} 条向量")
+def test_search_wraps_service_error(monkeypatch):
+    monkeypatch.setattr(rag, "rag_search", Mock(side_effect=RuntimeError("vector store down")))
 
-    confirm = input("是否执行全量入库？(y/n)：")
-    if confirm.lower() != "y":
-        print("已取消")
-        return
+    with pytest.raises(HTTPException) as error:
+        rag.search(rag.RagSearchRequest(query="测试"))
 
-    from app.rag.loader import load_documents_from_dir
-    from app.rag.splitter import get_text_splitter
-    from app.rag.vector_store import add_documents
-
-    print(f"📂 扫描目录：{DOCS_DIR}")
-    docs = load_documents_from_dir(DOCS_DIR)
-    print(f"📄 加载到 {len(docs)} 个文档片段")
-
-    splitter = get_text_splitter()
-    chunks = splitter.split_documents(docs)
-    print(f"✂️  切片后得到 {len(chunks)} 个 chunk")
-
-    add_documents(chunks)
-    after = vs._collection.count()
-    print(f"✅ 入库完成，当前向量库共 {after} 条")
+    assert error.value.status_code == 500
+    assert "知识库检索失败" in error.value.detail
 
 
-def test_rag_add_file():
-    """测试增量添加单个文件"""
-    file_path = input("请输入文件完整路径（如 ./uploads/考勤.txt）：")
-    if not file_path.strip():
-        print("⚠️ 路径不能为空")
-        return
-    try:
-        count = rag_add_file(file_path)
-        print(f"✅ 文件入库成功，新增 {count} 条向量")
-    except Exception as e:
-        print(f"❌ 入库失败：{str(e)}")
+def test_add_file_returns_path_after_success(monkeypatch):
+    add_file = Mock()
+    monkeypatch.setattr(rag, "rag_add_file", add_file)
+
+    response = rag.add_file(rag.RagFileResponse(file_path="uploads/policy.txt"))
+
+    assert response.data == {"file_path": "uploads/policy.txt"}
+    add_file.assert_called_once_with("uploads/policy.txt")
 
 
-def test_rag_add_files():
-    """测试批量添加文件"""
-    paths_str = input("请输入多个文件路径，用逗号分隔：")
-    if not paths_str.strip():
-        print("⚠️ 路径不能为空")
-        return
-    file_paths = [p.strip() for p in paths_str.split(",")]
-    print(f"📋 待处理 {len(file_paths)} 个文件...")
-    result = rag_add_files(file_paths)
-    print(f"✅ 成功 {len(result['success'])} 个，❌ 失败 {len(result['failed'])} 个")
-    if result["failed"]:
-        for f in result["failed"]:
-            print(f"   失败：{f['path']} → {f['error']}")
+def test_add_file_reports_unsupported_file_as_bad_request(monkeypatch):
+    monkeypatch.setattr(rag, "rag_add_file", Mock(side_effect=ValueError("不支持的文件格式：.docx")))
+
+    with pytest.raises(HTTPException) as error:
+        rag.add_file(rag.RagFileResponse(file_path="uploads/policy.docx"))
+
+    assert error.value.status_code == 400
+    assert ".docx" in error.value.detail
 
 
-def test_rag_delete_file():
-    """测试删除文件"""
-    file_path = input("请输入要删除的文件完整路径：")
-    if not file_path.strip():
-        print("⚠️ 路径不能为空")
-        return
-    rag_delete_file(file_path)
-    print(f"✅ 已删除文件 {file_path} 的所有向量")
+def test_add_files_rejects_empty_list():
+    with pytest.raises(HTTPException) as error:
+        rag.add_files(rag.RagFilesResponse(file_paths=[]))
+
+    assert error.value.status_code == 400
 
 
-def test_rag_stats():
-    """查看向量库统计"""
-    vs = get_vector_store()
-    total = vs._collection.count()
-    print(f"📊 向量库统计：共 {total} 条向量")
+def test_add_files_returns_batch_result(monkeypatch):
+    result = {"success": [{"path": "a.txt"}], "failed": [{"path": "b.pdf", "error": "parse failed"}]}
+    add_files = Mock(return_value=result)
+    monkeypatch.setattr(rag, "rag_add_files", add_files)
 
-    if total > 0:
-        all_data = vs._collection.get(limit=10000)
-        sources = set()
-        for meta in all_data["metadatas"]:
-            if meta and "source" in meta:
-                sources.add(meta["source"])
-        print(f"📁 涉及 {len(sources)} 个文件：")
-        for s in sorted(sources):
-            print(f"   - {s}")
+    response = rag.add_files(rag.RagFilesResponse(file_paths=["a.txt", "b.pdf"]))
+
+    assert response.data == result
+    add_files.assert_called_once_with(["a.txt", "b.pdf"])
 
 
-def show_menu():
-    print("\n========== RAG 功能测试菜单 ==========")
-    print("1. RAG 问答测试")
-    print("2. 全量入库测试")
-    print("3. 单文件增量添加")
-    print("4. 批量文件添加")
-    print("5. 删除文件向量")
-    print("6. 查看向量库统计")
-    print("0. 退出测试程序")
-    return input("请输入操作序号：")
+def test_delete_file_returns_deleted_path(monkeypatch):
+    delete_file = Mock()
+    monkeypatch.setattr(rag, "rag_delete_file", delete_file)
+
+    response = rag.delete_file(rag.RagDeleteRequest(file_path="uploads/old.txt"))
+
+    assert response.data == {"file_path": "uploads/old.txt", "deleted": True}
+    delete_file.assert_called_once_with("uploads/old.txt")
 
 
-def test_rag():
-    print("🔌 RAG 测试环境已就绪")
-    while True:
-        opt = show_menu()
-        try:
-            if opt == "1":
-                test_rag_search()
-            elif opt == "2":
-                test_rag_init()
-            elif opt == "3":
-                test_rag_add_file()
-            elif opt == "4":
-                test_rag_add_files()
-            elif opt == "5":
-                test_rag_delete_file()
-            elif opt == "6":
-                test_rag_stats()
-            elif opt == "0":
-                print("🛑 即将退出测试程序")
-                break
-            else:
-                print("❌ 无效选项，请重新输入！")
-        except Exception as e:
-            print(f"❌ 【异常】{str(e)}")
+def test_stats_returns_vector_count_and_sorted_sources(monkeypatch):
+    collection = Mock()
+    collection.count.return_value = 3
+    collection.get.return_value = {
+        "metadatas": [
+            {"source": "z.txt"},
+            {"source": "a.txt"},
+            {"source": "z.txt"},
+            None,
+        ]
+    }
+    monkeypatch.setattr(rag, "get_vector_store", lambda: SimpleStore(collection))
+
+    response = rag.stats()
+
+    assert response.data == {"vector_count": 3, "files": ["a.txt", "z.txt"]}
 
 
-if __name__ == "__main__":
-    test_rag()
+class SimpleStore:
+    def __init__(self, collection):
+        self._collection = collection

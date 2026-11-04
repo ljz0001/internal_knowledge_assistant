@@ -1,6 +1,7 @@
 # FastAPI应用的"心脏"，把所有东西组装起来，启动时只需要运行这个文件
 
 from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 from app.api.router import api_router
 
 
@@ -15,6 +16,47 @@ app = FastAPI(
 
 # 注册所有业务路由
 app.include_router(api_router)
+
+
+def custom_openapi():
+    """修正当前 FastAPI/Pydantic 组合生成的多文件上传 schema。
+
+    新版 OpenAPI 会把 UploadFile 数组表示为 application/octet-stream，
+    但当前 Swagger UI 将其显示成字符串输入框。显式使用 binary 后会显示文件选择控件。
+    """
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    operation = schema["paths"]["/rag/uploads"]["post"]
+    operation["requestBody"] = {
+        "required": True,
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "required": ["files"],
+                    "properties": {
+                        "files": {
+                            "type": "array",
+                            "description": "选择一个或多个 txt、md、pdf 文件",
+                            "items": {"type": "string", "format": "binary"},
+                        }
+                    },
+                }
+            }
+        },
+    }
+    app.openapi_schema = schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # 根路径接口（访问http://localhost:8000/ 时返回）
 @app.get("/", summary="根路径健康检查")

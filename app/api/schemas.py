@@ -2,8 +2,8 @@
 # Pydantic会自动校验格式，格式不对直接报错（不用手动判断）
 
 from pydantic import BaseModel, Field
-from datetime import date, time
-from typing import Any, Optional
+from datetime import date, datetime, time
+from typing import Any, Literal, Optional
 
 # ---------- 统一响应格式（所有接口都用这个返回） ----------
 class ApiResponse(BaseModel):
@@ -33,6 +33,33 @@ class RagFilesResponse(BaseModel):
 
 class RagDeleteRequest(BaseModel):
     file_path: str = Field(..., description="要删除的文件路径（必填）")
+
+
+# ---------- 新版知识库上传与审核相关 ----------
+# 文件二进制由 FastAPI 的 UploadFile 接收；下面模型只描述 JSON 响应和批量操作请求。
+DocumentStatusValue = Literal["pending", "approved", "deleted", "failed"]
+
+
+class KnowledgeDocumentResponse(BaseModel):
+    """上传文件在列表中展示的元数据，不返回文件内容。"""
+
+    id: int
+    original_name: str
+    stored_name: str
+    file_hash: str
+    file_size: int
+    file_type: str
+    status: DocumentStatusValue
+    error_message: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    create_time: Optional[datetime] = None
+    update_time: Optional[datetime] = None
+
+
+class DocumentBatchRequest(BaseModel):
+    """批量删除或批量审批时提交的文件记录 ID 列表。"""
+
+    document_ids: list[int] = Field(..., min_length=1, description="至少提供一个知识库文件ID")
 
 # ---------- 数据库业务相关（人工CRUD用） ----------
 # 员工相关

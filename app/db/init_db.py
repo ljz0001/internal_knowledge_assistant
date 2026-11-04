@@ -5,6 +5,7 @@ from app.db.models.employee import Employee
 from app.db.models.contact import Contact
 from app.db.models.leave import Leave
 from app.db.models.attendance import Attendance
+from app.db.models.knowledge_document import KnowledgeDocument
 from app.config.settings import MYSQL_DB
 print(f"【调试】读取到的数据库名称 = {MYSQL_DB}")
 

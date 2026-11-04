@@ -44,7 +44,7 @@ app/rag/chroma_db/
 *.sqlite3
 
 # 本地模型文件
-models/
+/models/
 *.bin
 *.safetensors
 *.pt
@@ -54,8 +54,7 @@ models/
 uploads/
 
 # 本地生成的修改说明与运行报告
-**/*修改日志.md
-**/*运行报告*.md
+/local_notes/
 
 # 项目文档，不上传仓库
 企业内部办公知识库问答助手.docx

@@ -29,6 +29,15 @@ def delete_by_source(source_file_path: str) -> None:
     if ids:
         vector_store.delete(ids=ids)
 
+
+def delete_by_document_id(document_id: int) -> None:
+    """按知识库文件记录 ID 删除该文件的全部切片向量。"""
+    vector_store = get_vector_store()
+    ret = vector_store.get(where={"document_id": document_id}, limit=10000)
+    ids = ret["ids"]
+    if ids:
+        vector_store.delete(ids=ids)
+
 def get_retriever():
     vector_store = get_vector_store()
     return vector_store.as_retriever(

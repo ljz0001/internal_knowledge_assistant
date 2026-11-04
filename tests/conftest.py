@@ -11,6 +11,7 @@ from app.db.models.attendance import Attendance  # noqa: F401 - register model m
 from app.db.models.contact import Contact  # noqa: F401 - register model metadata
 from app.db.models.employee import Employee  # noqa: F401 - register model metadata
 from app.db.models.leave import Leave  # noqa: F401 - register model metadata
+from app.db.models.knowledge_document import KnowledgeDocument  # noqa: F401 - register model metadata
 
 
 @pytest.fixture

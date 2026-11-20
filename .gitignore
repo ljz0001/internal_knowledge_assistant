@@ -56,6 +56,12 @@ uploads/
 # 本地生成的修改说明与运行报告
 /local_notes/
 
+# 前端依赖、构建产物及独立练习项目
+/web-frontend-demo/
+/web/node_modules/
+/web/dist/
+/web/.vite/
+
 # 项目文档，不上传仓库
 企业内部办公知识库问答助手.docx
 企业内部办公知识库问答助手项目归档文档.md

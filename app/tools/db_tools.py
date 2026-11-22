@@ -1,4 +1,6 @@
 from langchain.tools import tool
+from app.common.logger import logger
+from app.tools.result import error, invalid_input, not_found, success, unsupported
 from app.db.session import SessionLocal
 from app.db.crud.att_crud import (
     get_attendance_by_date,
@@ -29,15 +31,15 @@ from app.db.crud.leave_crud import (
 )
 
 @tool
-def query_employee_tool(emp_no: str = "", emp_name: str = "") -> str:
-    """查询员工信息。可通过工号(emp_no)精确查找，或通过姓名(emp_name)模糊查找。"""
+def query_employee_tool(emp_no: str = "", emp_name: str = "") -> dict:
+    """查询员工信息。可通过工号精确查找，或通过姓名模糊查找；不支持统计员工数量。"""
     db = SessionLocal()
     try:
         if emp_no:
             emp = get_employee_by_no(db, emp_no)
             if emp:
-                return f"员工信息：\n  姓名：{emp.emp_name}\n  工号：{emp.emp_no}\n  部门：{emp.department}\n  手机：{emp.phone or '无'}"
-            return f"未找到工号为 {emp_no} 的员工"
+                return success({"id": emp.id, "name": emp.emp_name, "emp_no": emp.emp_no, "department": emp.department, "phone": emp.phone or ""})
+            return not_found(f"未找到工号为 {emp_no} 的员工")
         elif emp_name:
             emps = get_employee_list(db)
             matches = [e for e in emps if emp_name in (e.emp_name or "")]
@@ -45,10 +47,13 @@ def query_employee_tool(emp_no: str = "", emp_name: str = "") -> str:
                 parts = []
                 for e in matches:
                     parts.append(f"  姓名：{e.emp_name}，工号：{e.emp_no}，部门：{e.department}，手机：{e.phone or '无'}")
-                return f"找到 {len(matches)} 个员工：\n" + "\n".join(parts)
-            return f"未找到姓名包含 '{emp_name}' 的员工"
+                return success([{"id": e.id, "name": e.emp_name, "emp_no": e.emp_no, "department": e.department, "phone": e.phone or ""} for e in matches], f"找到 {len(matches)} 个员工")
+            return not_found(f"未找到姓名包含 '{emp_name}' 的员工")
         else:
-            return "请提供工号(emp_no)或姓名(emp_name)"
+            return invalid_input("请提供工号 emp_no 或姓名 emp_name")
+    except Exception:
+        logger.exception("员工查询工具执行失败")
+        return error("员工查询服务暂时不可用，请稍后重试", "EMPLOYEE_QUERY_ERROR")
     finally:
         db.close()
 
@@ -68,8 +73,8 @@ def query_employee_tool(emp_no: str = "", emp_name: str = "") -> str:
 
 
 @tool
-def query_attendance_tool(emp_id: int = 0, date: str = "") -> str:
-    """查询考勤记录。可通过员工ID(emp_id)查询某员工全部考勤，或通过日期(date, 格式YYYY-MM-DD)查询某天所有考勤。"""
+def query_attendance_tool(emp_id: int = 0, date: str = "") -> dict:
+    """查询考勤明细。可按员工ID或日期查询；不支持统计全部考勤数量或其他聚合分析。"""
     db = SessionLocal()
     try:
         records = []
@@ -81,14 +86,19 @@ def query_attendance_tool(emp_id: int = 0, date: str = "") -> str:
         elif date:
             records = get_attendance_by_date(db, date)
         else:
-            return "请提供员工ID(emp_id)或日期(date)"
+            return unsupported("当前只支持按员工ID或日期查询考勤明细，不支持统计全部考勤记录数量", "ATTENDANCE_AGGREGATION_NOT_SUPPORTED")
         
         if not records:
-            return "未找到考勤记录"
+            return not_found("未找到符合条件的考勤记录")
         parts = []
         for r in records:
             parts.append(f"  日期：{r.attend_date}，上班：{r.check_in}，下班：{r.check_out}，状态：{r.status}")
-        return f"共 {len(records)} 条考勤记录：\n" + "\n".join(parts)
+        return success([{"date": str(r.attend_date), "check_in": str(r.check_in), "check_out": str(r.check_out), "status": r.status} for r in records], f"共 {len(records)} 条考勤记录")
+    except ValueError:
+        return invalid_input("日期格式应为 YYYY-MM-DD", "ATTENDANCE_DATE_INVALID")
+    except Exception:
+        logger.exception("考勤查询工具执行失败")
+        return error("考勤查询服务暂时不可用，请稍后重试", "ATTENDANCE_QUERY_ERROR")
     finally:
         db.close()
 
@@ -105,8 +115,8 @@ def query_attendance_tool(emp_id: int = 0, date: str = "") -> str:
 #         db.close()
 
 @tool
-def query_leave_tool(emp_id: int = 0, start_date: str = "") -> str:
-    """查询请假记录。可通过员工ID(emp_id)查询全部请假，或通过开始日期(start_date, YYYY-MM-DD)查询某天开始的请假。"""
+def query_leave_tool(emp_id: int = 0, start_date: str = "") -> dict:
+    """查询请假记录。可按员工ID或开始日期查询；不支持统计全部请假数量。"""
     db = SessionLocal()
     try:
         records = []
@@ -115,14 +125,19 @@ def query_leave_tool(emp_id: int = 0, start_date: str = "") -> str:
         elif start_date:
             records = get_leave_by_start_date(db, start_date)
         else:
-            return "请提供员工ID(emp_id)或开始日期(start_date)"
+            return invalid_input("请提供员工ID emp_id 或开始日期 start_date")
         
         if not records:
-            return "未找到请假记录"
+            return not_found("未找到符合条件的请假记录")
         parts = []
         for r in records:
             parts.append(f"  ID：{r.id}，员工ID：{r.emp_id}，类型：{r.leave_type}，时间：{r.start_date} 至 {r.end_date}，原因：{r.reason}，状态：{r.audit_status}")
-        return f"共 {len(records)} 条请假记录：\n" + "\n".join(parts)
+        return success([{"id": r.id, "emp_id": r.emp_id, "leave_type": r.leave_type, "start_date": str(r.start_date), "end_date": str(r.end_date), "reason": r.reason, "audit_status": r.audit_status} for r in records], f"共 {len(records)} 条请假记录")
+    except ValueError:
+        return invalid_input("开始日期格式应为 YYYY-MM-DD", "LEAVE_DATE_INVALID")
+    except Exception:
+        logger.exception("请假查询工具执行失败")
+        return error("请假查询服务暂时不可用，请稍后重试", "LEAVE_QUERY_ERROR")
     finally:
         db.close()
 
@@ -138,25 +153,25 @@ def query_leave_tool(emp_id: int = 0, start_date: str = "") -> str:
 #         db.close()
 
 @tool
-def query_contact_tool(name: str = "", contact_id: int = 0) -> str:
-    """查询通讯录联系人。可通过姓名(name)模糊搜索或ID(contact_id)精确查询。"""
+def query_contact_tool(name: str = "", contact_id: int = 0) -> dict:
+    """查询通讯录联系人。可通过姓名模糊搜索或ID精确查询；不支持统计联系人数量。"""
     db = SessionLocal()
     try:
         if name:
             contacts = get_contact_by_name(db, name)
             if not contacts:
-                return f"未找到姓名包含 '{name}' 的联系人"
-            parts = []
-            for c in contacts:
-                parts.append(f"  姓名：{c.name}，手机：{c.phone}，部门：{c.department}，备注：{c.remark or '无'}")
-            return f"找到 {len(contacts)} 个联系人：\n" + "\n".join(parts)
+                return not_found(f"未找到姓名包含 '{name}' 的联系人")
+            return success([{"id": c.id, "name": c.name, "phone": c.phone, "department": c.department, "remark": c.remark or ""} for c in contacts], f"找到 {len(contacts)} 个联系人")
         elif contact_id:
             c = get_contact_by_id(db, contact_id)
             if c:
-                return f"联系人信息：\n  姓名：{c.name}\n  手机：{c.phone}\n  部门：{c.department}\n  备注：{c.remark or '无'}"
-            return f"未找到ID为 {contact_id} 的联系人"
+                return success({"id": c.id, "name": c.name, "phone": c.phone, "department": c.department, "remark": c.remark or ""})
+            return not_found(f"未找到ID为 {contact_id} 的联系人")
         else:
-            return "请提供姓名(name)或ID(contact_id)"
+            return invalid_input("请提供联系人姓名 name 或联系人ID contact_id")
+    except Exception:
+        logger.exception("联系人查询工具执行失败")
+        return error("联系人查询服务暂时不可用，请稍后重试", "CONTACT_QUERY_ERROR")
     finally:
         db.close()
 
@@ -290,28 +305,36 @@ def query_contact_tool(name: str = "", contact_id: int = 0) -> str:
 #         db.close()
 
 @tool
-def get_employee_by_id_tool(emp_id: int) -> str:
+def get_employee_by_id_tool(emp_id: int) -> dict:
     """通过员工ID精确查询员工信息。"""
     db = SessionLocal()
     try:
         emp = get_employee_by_id(db, emp_id)
         if emp:
-            return f"员工信息：\n  ID：{emp.id}\n  姓名：{emp.emp_name}\n  工号：{emp.emp_no}\n  部门：{emp.department}\n  手机：{emp.phone or '无'}"
-        return f"未找到ID为 {emp_id} 的员工"
+            return success({"id": emp.id, "name": emp.emp_name, "emp_no": emp.emp_no, "department": emp.department, "phone": emp.phone or ""})
+        return not_found(f"未找到ID为 {emp_id} 的员工")
+    except Exception:
+        logger.exception("员工ID查询工具执行失败")
+        return error("员工查询服务暂时不可用，请稍后重试", "EMPLOYEE_ID_QUERY_ERROR")
     finally:
         db.close()
 
 @tool
-def get_leave_by_start_date_tool(start_date: str) -> str:
+def get_leave_by_start_date_tool(start_date: str) -> dict:
     """通过开始日期查询请假记录。参数start_date格式为YYYY-MM-DD。"""
     db = SessionLocal()
     try:
         records = get_leave_by_start_date(db, start_date)
         if not records:
-            return f"未找到 {start_date} 开始的请假记录"
+            return not_found(f"未找到 {start_date} 开始的请假记录")
         parts = []
         for r in records:
             parts.append(f"  ID：{r.id}，员工ID：{r.emp_id}，类型：{r.leave_type}，时间：{r.start_date} 至 {r.end_date}，原因：{r.reason}")
-        return f"共 {len(records)} 条记录：\n" + "\n".join(parts)
+        return success([{"id": r.id, "emp_id": r.emp_id, "leave_type": r.leave_type, "start_date": str(r.start_date), "end_date": str(r.end_date), "reason": r.reason} for r in records], f"共 {len(records)} 条记录")
+    except ValueError:
+        return invalid_input("开始日期格式应为 YYYY-MM-DD", "LEAVE_DATE_INVALID")
+    except Exception:
+        logger.exception("按日期查询请假工具执行失败")
+        return error("请假查询服务暂时不可用，请稍后重试", "LEAVE_DATE_QUERY_ERROR")
     finally:
         db.close()

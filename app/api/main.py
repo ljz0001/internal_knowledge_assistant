@@ -75,7 +75,8 @@ if __name__ == "__main__":
     # host="0.0.0.0" → 允许局域网访问（手机/其他电脑能调）
     # port=8000 → 端口号（改端口就改这里）
     # reload=True → 开发时用，代码改了自动重启（生产环境要关掉，性能好）
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    # reload 需要可导入的字符串路径；请从项目根目录执行 python -m app.api.main。
+    uvicorn.run("app.api.main:app", host="0.0.0.0", port=8000, reload=True)
 
 
 

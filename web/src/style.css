@@ -32,7 +32,11 @@ input[type='checkbox'] { accent-color: var(--primary); width: 15px; height: 15px
 label { display: block; font-size: 13px; font-weight: 500; }
 label > input, label > select { margin-top: 7px; }
 .app-shell { min-height: 100vh; }
-.sidebar { width: var(--sidebar-width); position: fixed; inset: 0 auto 0 0; z-index: 40; background: #fff; border-right: 1px solid var(--border); padding: 33px 17px 0; display: flex; flex-direction: column; }
+.sidebar { width: var(--sidebar-width); position: fixed; inset: 0 auto 0 0; z-index: 40; background: #fff; border-right: 1px solid var(--border); padding: 33px 17px 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: #ddd7eb; border-radius: 999px; }
+.sidebar { scrollbar-width: thin; scrollbar-color: #ddd7eb transparent; }
 .brand { display: flex; align-items: center; gap: 11px; padding: 0 13px; color: #303145; }
 .brand-symbol { display: grid; place-items: center; background: var(--primary); color: white; width: 42px; height: 42px; border-radius: 12px; box-shadow: 0 5px 12px #7664d829; }
 .brand strong { font-size: 23px; letter-spacing: 2px; line-height: 1.2; }

@@ -45,15 +45,45 @@ def test_run_function_agent_uses_default_agent_when_not_injected(monkeypatch):
 
     result = run_function_agent("你好")
 
-    assert result == {"steps": [], "answer": "你好"}
+    assert result == {"steps": [], "answer": "你好", "handled": True, "status": "success"}
     get_agent.assert_called_once_with()
 
 
-def test_run_function_agent_propagates_invoke_errors(fake_agent):
+def test_run_function_agent_converts_invoke_errors_to_safe_answer(fake_agent):
     fake_agent.invoke.side_effect = RuntimeError("agent unavailable")
 
-    with pytest.raises(RuntimeError, match="agent unavailable"):
-        run_function_agent("测试", agent=fake_agent)
+    result = run_function_agent("测试", agent=fake_agent)
+
+    assert result["status"] == "error"
+    assert result["handled"] is False
+    assert "智能助手暂时无法处理" in result["answer"]
+
+
+def test_run_function_agent_uses_tool_unsupported_status():
+    fake_agent = Mock()
+    fake_agent.invoke.return_value = {
+        "messages": [
+            SimpleNamespace(tool_calls=[], content='{"status":"unsupported","data":null,"message":"当前不支持统计考勤数量","code":"ATTENDANCE_AGGREGATION_NOT_SUPPORTED"}'),
+            SimpleNamespace(tool_calls=[], content="我无法完成。"),
+        ]
+    }
+
+    result = run_function_agent("现在有多少考勤记录？", agent=fake_agent)
+
+    assert result["status"] == "unsupported"
+    assert result["answer"] == "当前不支持统计考勤数量"
+
+
+def test_run_function_agent_uses_tool_not_found_status_as_answer():
+    fake_agent = Mock()
+    fake_agent.invoke.return_value = {
+        "messages": [SimpleNamespace(tool_calls=[], content={"status": "not_found", "message": "未找到员工"})]
+    }
+
+    result = run_function_agent("查询不存在的员工", agent=fake_agent)
+
+    assert result["status"] == "not_found"
+    assert result["answer"] == "未找到员工"
 
 
 def test_agent_database_tools_remain_read_only():

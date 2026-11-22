@@ -53,6 +53,9 @@ app/rag/chroma_db/
 # 运行时上传文件（按需，素材不提交git）
 uploads/
 
+# 本地知识库原文，不提交仓库
+/docs/
+
 # 本地生成的修改说明与运行报告
 /local_notes/
 

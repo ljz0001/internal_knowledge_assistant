@@ -11,11 +11,11 @@ def get_attendance_by_id(db: Session, attendance_id: int):
 
 
 # 根据日期查询考勤记录
-def get_attendance_by_date(db:Session,date:date):
+def get_attendance_by_date(db: Session, attend_date: date):
     # 如果传的是字符串，自动转为date对象
-    if isinstance(date, str):
-        date = date.fromisoformat(date)
-    return db.query(Attendance).filter(Attendance.attend_date == date).all()
+    if isinstance(attend_date, str):
+        attend_date = date.fromisoformat(attend_date)
+    return db.query(Attendance).filter(Attendance.attend_date == attend_date).all()
 
 
 # 添加考勤记录
